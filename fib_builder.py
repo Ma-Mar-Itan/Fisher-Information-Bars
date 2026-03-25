@@ -23,7 +23,6 @@ class FIBBuilder:
             bar = builder.update(event)
             if bar is not None:
                 process(bar)
-        # Flush any open bar at end of data:
         final = builder.flush()
     """
 
@@ -55,8 +54,7 @@ class FIBBuilder:
         self._global_event_count: int = 0
 
     def _get_n_params(self) -> int:
-        mapping = {"gaussian": 2, "garch": 3, "hawkes": 3}
-        return mapping.get(self.cfg.model, 2)
+        return {"gaussian": 2, "garch": 3, "hawkes": 3}.get(self.cfg.model, 2)
 
     def _reset_bar(self) -> None:
         self._J = np.zeros((self._n_params, self._n_params))
@@ -66,12 +64,10 @@ class FIBBuilder:
     def _compute_increment(self, event: MarketEvent) -> np.ndarray:
         if self.cfg.info_mode == "observed":
             return self._model.observed_information_increment(event)
-        else:
-            return self._model.expected_information_increment(event)
+        return self._model.expected_information_increment(event)
 
     def _scalarize(self) -> float:
-        J_sym = symmetrize(self._J)
-        return self._scalarizer(J_sym, eps=self.cfg.eps_ridge)
+        return self._scalarizer(symmetrize(self._J), eps=self.cfg.eps_ridge)
 
     def _emit_bar(self, timeout_flag: bool) -> FIBBar:
         scalar = self._current_scalar
@@ -107,22 +103,25 @@ class FIBBuilder:
         self._global_event_count += 1
         event.index = self._global_event_count
 
-        # Add to OHLCV aggregator first (for open_time)
+        # First event in a bar: open it, no increment yet (no prior price)
         if self._agg.n_events == 0:
             self._agg.add(event)
             self._model.update(event)
             return None
 
-        # Compute increment BEFORE updating model state
+        # Compute increment at theta_{i-1} BEFORE updating model
         increment = self._compute_increment(event)
         self._J += increment
         self._current_scalar = self._scalarize()
 
-        # Update aggregator and model
+        # Seed threshold from first real scalar (breaks inf-deadlock at startup)
+        self._threshold_policy.seed_from_scalar(self._current_scalar)
+
+        # Update aggregator and model state
         self._agg.add(event)
         self._model.update(event)
 
-        # Check timeout
+        # ── Timeout check ───────────────────────────────────────────────────
         bar_start = self._agg.open_time or event.timestamp
         if self._timeout_policy.should_timeout(
             bar_start_time=bar_start,
@@ -132,9 +131,8 @@ class FIBBuilder:
         ):
             return self._emit_bar(timeout_flag=True)
 
-        # Check information threshold
-        threshold = self._threshold_policy.current_threshold()
-        if self._current_scalar >= threshold:
+        # ── Information threshold check ─────────────────────────────────────
+        if self._current_scalar >= self._threshold_policy.current_threshold():
             return self._emit_bar(timeout_flag=False)
 
         return None
@@ -144,3 +142,25 @@ class FIBBuilder:
         if self._agg.n_events > 0:
             return self._emit_bar(timeout_flag=True)
         return None
+
+    # ── Live inspection ─────────────────────────────────────────────────────
+
+    @property
+    def current_scalar(self) -> float:
+        """Scalarised information accumulated in the open bar so far."""
+        return self._current_scalar
+
+    @property
+    def current_threshold(self) -> float:
+        """Current Information Quantum I*."""
+        return self._threshold_policy.current_threshold()
+
+    @property
+    def n_bars_completed(self) -> int:
+        return self._threshold_policy.n_bars_completed
+
+    def model_state(self) -> dict:
+        return self._model.state_dict()
+
+    def threshold_state(self) -> dict:
+        return self._threshold_policy.state_dict()
