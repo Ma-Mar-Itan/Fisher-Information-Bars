@@ -527,15 +527,16 @@ augment_with_fib_features = _FIBARS["augment_with_fib_features"]
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ═══════════════════════════════════════════════════════════════════════════════
-# STREAMLIT APP  v2.0
 # ═══════════════════════════════════════════════════════════════════════════════
-import io, json, traceback, math
+# STREAMLIT APP  v3.0  —  professional light theme, review-driven rebuild
+# ═══════════════════════════════════════════════════════════════════════════════
+import io, json, traceback
 from typing import Optional
 
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
+import plotly.express as px
 from plotly.subplots import make_subplots
 import streamlit as st
 
@@ -546,579 +547,1045 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-ACCENT  = "#C8F04A"
-ACCENT2 = "#4AF0C8"
-WARN    = "#F0A84A"
-DANGER  = "#F04A4A"
-MUTED   = "#7A7F8E"
-BG_CARD = "rgba(255,255,255,0.04)"
-BORDER  = "rgba(255,255,255,0.09)"
-PT      = "plotly_dark"
-CRMAP   = {"threshold": "#C8F04A", "timeout": "#F0A84A", "flush": "#7A7F8E",
-           "inactivity": "#4AF0C8", "max_events": "#F04A4A"}
-
-st.markdown("""
+# ── Design tokens (light, professional) ─────────────────────────────────────
+CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
-html,body,[class*="css"]{font-family:'IBM Plex Sans',sans-serif}
-.block-container{padding:1.8rem 2.2rem 2rem;max-width:1400px}
-section[data-testid="stSidebar"]{background:#0b0d11;border-right:1px solid rgba(255,255,255,0.09)}
-section[data-testid="stSidebar"] .stMarkdown p{font-size:0.78rem;color:#7A7F8E}
-.fib-wordmark{font-family:'IBM Plex Mono',monospace;font-size:1.05rem;font-weight:500;
-  color:#C8F04A;letter-spacing:.04em;margin-bottom:.15rem}
-.fib-tagline{font-size:.7rem;color:#7A7F8E;letter-spacing:.06em;text-transform:uppercase;margin-bottom:1rem}
-.sb-section{font-size:.62rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;
-  color:#7A7F8E;border-bottom:1px solid rgba(255,255,255,0.09);padding-bottom:.25rem;margin:1rem 0 .6rem}
-.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.2rem}
-.kpi{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:8px;padding:14px 16px}
-.kpi-label{font-size:.65rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#7A7F8E}
-.kpi-value{font-family:'IBM Plex Mono',monospace;font-size:1.7rem;font-weight:400;
-  color:#f0f2f5;line-height:1.1;margin:4px 0 2px}
-.kpi-sub{font-size:.68rem;color:#7A7F8E}
-.kpi-accent{color:#C8F04A}
-.page-header{display:flex;align-items:baseline;gap:14px;margin-bottom:.3rem}
-.page-title{font-family:'IBM Plex Mono',monospace;font-size:1.55rem;font-weight:500;
-  color:#f0f2f5;letter-spacing:-.01em}
-.page-sub{font-size:.8rem;color:#7A7F8E}
-.callout-warn{background:rgba(240,168,74,.08);border-left:3px solid #F0A84A;
-  border-radius:0 6px 6px 0;padding:8px 12px;font-size:.78rem;color:#F0A84A;margin:8px 0}
-.callout-info{background:rgba(74,240,200,.06);border-left:3px solid #4AF0C8;
-  border-radius:0 6px 6px 0;padding:8px 12px;font-size:.78rem;color:#4AF0C8;margin:8px 0}
-.section-h{font-family:'IBM Plex Mono',monospace;font-size:.7rem;font-weight:500;
-  letter-spacing:.12em;text-transform:uppercase;color:#7A7F8E;margin:1.4rem 0 .5rem}
-div[data-testid="stMarkdownContainer"] p{margin:0}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+}
+.block-container {
+    padding: 1.6rem 2rem 2rem;
+    max-width: 1360px;
+}
+/* ── Sidebar ── */
+section[data-testid="stSidebar"] {
+    background: #F8F9FB;
+    border-right: 1px solid #E4E7ED;
+}
+section[data-testid="stSidebar"] .stMarkdown p {
+    font-size: 0.76rem;
+    color: #6B7280;
+    line-height: 1.5;
+}
+/* Sidebar section labels */
+.sb-label {
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #9CA3AF;
+    border-bottom: 1px solid #E4E7ED;
+    padding-bottom: 4px;
+    margin: 14px 0 8px;
+}
+/* ── Page header ── */
+.page-title {
+    font-size: 1.45rem;
+    font-weight: 600;
+    color: #111827;
+    letter-spacing: -0.02em;
+    margin-bottom: 2px;
+}
+.page-sub {
+    font-size: 0.82rem;
+    color: #6B7280;
+    font-family: 'JetBrains Mono', monospace;
+}
+/* ── Section headings ── */
+.section-heading {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #9CA3AF;
+    margin: 1.6rem 0 0.6rem;
+    border-bottom: 1px solid #F3F4F6;
+    padding-bottom: 5px;
+}
+/* ── KPI cards ── */
+.kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.kpi {
+    background: #FFFFFF;
+    border: 1px solid #E4E7ED;
+    border-radius: 8px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.kpi-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9CA3AF;
+    margin-bottom: 5px;
+}
+.kpi-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.55rem;
+    font-weight: 500;
+    color: #111827;
+    line-height: 1;
+    margin-bottom: 3px;
+}
+.kpi-sub {
+    font-size: 0.7rem;
+    color: #9CA3AF;
+}
+.kpi-accent .kpi-value { color: #1D4ED8; }
+.kpi-warn   .kpi-value { color: #B45309; }
+.kpi-good   .kpi-value { color: #065F46; }
+/* ── Callouts ── */
+.callout {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-size: 0.78rem;
+    margin: 6px 0;
+    line-height: 1.5;
+}
+.callout-warn  { background: #FFFBEB; border: 1px solid #FCD34D; color: #92400E; }
+.callout-info  { background: #EFF6FF; border: 1px solid #BFDBFE; color: #1E3A8A; }
+.callout-good  { background: #ECFDF5; border: 1px solid #6EE7B7; color: #065F46; }
+/* ── Preset buttons ── */
+.preset-active {
+    border-bottom: 2px solid #1D4ED8 !important;
+    color: #1D4ED8 !important;
+    font-weight: 600 !important;
+}
+/* ── Legend pills ── */
+.legend-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 10px; }
+.legend-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.72rem; color: #374151;
+    background: #F9FAFB; border: 1px solid #E4E7ED;
+    border-radius: 20px; padding: 3px 9px;
+}
+.legend-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(CSS, unsafe_allow_html=True)
+
+# ── Consistent colour palette (concept-mapped) ────────────────────────────────
+C = {
+    "threshold":  "#1D4ED8",   # blue  — information threshold close
+    "timeout":    "#D97706",   # amber — timeout/safety-valve close
+    "flush":      "#9CA3AF",   # grey  — end-of-data flush
+    "inactivity": "#7C3AED",   # violet — inactivity close
+    "max_events": "#DC2626",   # red   — max-events close
+    "fib":        "#1D4ED8",   # blue  — FIB series
+    "baseline":   "#D97706",   # amber — baseline series
+    "price":      "#374151",   # charcoal — price line
+    "scalar":     "#1D4ED8",   # blue  — info scalar
+    "threshold_line": "#D97706", # amber — threshold line
+    "rate":       "#059669",   # green — information rate
+}
+CRMAP = {k: C[k] for k in ["threshold","timeout","flush","inactivity","max_events"]}
+PT = "plotly_white"
 
 
-def _sh(t): st.markdown(f'<div class="section-h">{t}</div>', unsafe_allow_html=True)
-def _sb(t): st.sidebar.markdown(f'<div class="sb-section">{t}</div>', unsafe_allow_html=True)
+# ── Utility functions ─────────────────────────────────────────────────────────
+
+def _sb_label(t):
+    st.sidebar.markdown(f'<div class="sb-label">{t}</div>', unsafe_allow_html=True)
+
+def _sh(t):
+    st.markdown(f'<div class="section-heading">{t}</div>', unsafe_allow_html=True)
+
 def _callout(msg, kind="warn"):
-    cls = "callout-warn" if kind == "warn" else "callout-info"
-    st.markdown(f'<div class="{cls}">{msg}</div>', unsafe_allow_html=True)
-def _csv(df): return df.to_csv(index=False).encode("utf-8")
+    icon = {"warn": "⚠", "info": "ℹ", "good": "✓"}.get(kind, "ℹ")
+    st.markdown(
+        f'<div class="callout callout-{kind}"><span>{icon}</span><span>{msg}</span></div>',
+        unsafe_allow_html=True,
+    )
+
+def _csv(df):
+    return df.to_csv(index=False).encode("utf-8")
 
 def _coerce_ts(df, col):
-    df = df.copy(); s = df[col]
-    if pd.api.types.is_numeric_dtype(s): df[col] = s.astype(float); return df
-    try: df[col] = pd.to_datetime(s, utc=True).astype("int64") / 1e9; return df
-    except Exception: pass
-    try: df[col] = s.astype(float)
-    except Exception: pass
+    df = df.copy()
+    s = df[col]
+    if pd.api.types.is_numeric_dtype(s):
+        df[col] = s.astype(float)
+        return df
+    try:
+        df[col] = pd.to_datetime(s, utc=True).astype("int64") / 1e9
+        return df
+    except Exception:
+        pass
+    try:
+        df[col] = s.astype(float)
+    except Exception:
+        pass
     return df
 
 def _summary(df):
-    if df.empty: return {}
-    n=len(df); ne=df["n_events"]; dur=df["duration_seconds"]; info=df["information_scalar"]
-    thr=(df["close_reason"]=="threshold").sum()
-    cv=ne.std()/ne.mean() if ne.mean()>0 else float("nan")
-    return {"n_bars":n,"avg_events":float(ne.mean()),"cv_events":float(cv),
-            "avg_dur":float(dur.mean()),"med_dur":float(dur.median()),
-            "pct_thr":float(thr/n*100),"avg_info":float(info.mean()),
-            "med_info":float(info.median()),
-            "reasons":df["close_reason"].value_counts().to_dict()}
+    if df.empty:
+        return {}
+    n = len(df)
+    ne = df["n_events"]
+    dur = df["duration_seconds"]
+    info = df["information_scalar"]
+    thr = (df["close_reason"] == "threshold").sum()
+    cv = ne.std() / ne.mean() if ne.mean() > 0 else float("nan")
+    return {
+        "n_bars": n, "avg_events": float(ne.mean()), "cv_events": float(cv),
+        "avg_dur": float(dur.mean()), "med_dur": float(dur.median()),
+        "pct_thr": float(thr / n * 100), "avg_info": float(info.mean()),
+        "med_info": float(info.median()),
+        "reasons": df["close_reason"].value_counts().to_dict(),
+    }
 
-def _kpi(label, value, sub="", accent=False):
-    vc = "kpi-value kpi-accent" if accent else "kpi-value"
-    s = f'<div class="kpi"><div class="kpi-label">{label}</div>'
-    s += f'<div class="{vc}">{value}</div>'
-    if sub: s += f'<div class="kpi-sub">{sub}</div>'
-    return s + '</div>'
+def _kpi(label, value, sub="", style=""):
+    return (
+        f'<div class="kpi {style}">'
+        f'<div class="kpi-label">{label}</div>'
+        f'<div class="kpi-value">{value}</div>'
+        f'<div class="kpi-sub">{sub}</div>'
+        f'</div>'
+    )
+
+def _legend(*items):
+    pills = "".join(
+        f'<span class="legend-pill">'
+        f'<span class="legend-dot" style="background:{c}"></span>{label}</span>'
+        for label, c in items
+    )
+    st.markdown(f'<div class="legend-row">{pills}</div>', unsafe_allow_html=True)
 
 def _synthetic(n=2000, seed=42, vol_regime="mixed", drift=0.0):
-    rng = np.random.default_rng(seed); price = 100.0
-    prices, ts, sizes = [], [], []; t = 0.0
-    vmap = {"calm":([0.02],[1.0]),
-            "mixed":([0.03,0.15,0.55],[0.70,0.22,0.08]),
-            "volatile":([0.08,0.35,0.90],[0.50,0.35,0.15])}
+    rng = np.random.default_rng(seed)
+    price = 100.0
+    prices, ts, sizes = [], [], []
+    t = 0.0
+    vmap = {
+        "calm":     ([0.02], [1.0]),
+        "mixed":    ([0.03, 0.15, 0.55], [0.70, 0.22, 0.08]),
+        "volatile": ([0.08, 0.35, 0.90], [0.50, 0.35, 0.15]),
+    }
     vols, probs = vmap.get(vol_regime, vmap["mixed"])
     for _ in range(n):
         vol = rng.choice(vols, p=probs)
-        price = max(price * np.exp(drift/n + rng.normal(0, vol)), 1.0)
+        price = max(price * np.exp(drift / n + rng.normal(0, vol)), 1.0)
         t += rng.exponential(0.5)
-        prices.append(round(price,4)); ts.append(round(t,4))
-        sizes.append(int(rng.integers(1,20)))
-    df = pd.DataFrame({"timestamp":ts,"price":prices,"size":sizes})
-    h = 0.015 + 0.008*rng.random(n)
-    df["bid"] = (df["price"]-h).round(4); df["ask"] = (df["price"]+h).round(4)
+        prices.append(round(price, 4))
+        ts.append(round(t, 4))
+        sizes.append(int(rng.integers(1, 20)))
+    df = pd.DataFrame({"timestamp": ts, "price": prices, "size": sizes})
+    h = 0.015 + 0.008 * rng.random(n)
+    df["bid"] = (df["price"] - h).round(4)
+    df["ask"] = (df["price"] + h).round(4)
     return df
 
+
+# ── Presets ───────────────────────────────────────────────────────────────────
 PRESETS = {
-    "Fast":     dict(eta=0.3,  delta0=15.0,  ewma_a=0.15, min_wu=3,  timeout_s=60.0,  max_ev=500,   model="gaussian"),
-    "Balanced": dict(eta=1.0,  delta0=60.0,  ewma_a=0.05, min_wu=10, timeout_s=300.0, max_ev=5000,  model="garch"),
-    "Robust":   dict(eta=2.5,  delta0=120.0, ewma_a=0.02, min_wu=20, timeout_s=600.0, max_ev=10000, model="garch"),
+    "Fast": {
+        "eta": 0.3, "delta0": 15.0, "ewma_a": 0.15, "min_wu": 3,
+        "timeout_s": 60.0, "max_ev": 500, "model": "gaussian",
+        "_desc": "Short, frequent bars. High alpha for fast threshold adaptation. "
+                 "Good for exploring dense tick data.",
+    },
+    "Balanced": {
+        "eta": 1.0, "delta0": 60.0, "ewma_a": 0.05, "min_wu": 10,
+        "timeout_s": 300.0, "max_ev": 5000, "model": "garch",
+        "_desc": "Sensible defaults for most equity/FX datasets. "
+                 "GARCH adapts to volatility clustering.",
+    },
+    "Robust": {
+        "eta": 2.5, "delta0": 120.0, "ewma_a": 0.02, "min_wu": 20,
+        "timeout_s": 600.0, "max_ev": 10000, "model": "garch",
+        "_desc": "Larger bars with stable thresholds. Suited for illiquid or "
+                 "sparse data where patience is required.",
+    },
 }
 
-# ── Sidebar ────────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SIDEBAR
+# ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.markdown('<div class="fib-wordmark">◈ FIB</div>', unsafe_allow_html=True)
-    st.markdown('<div class="fib-tagline">Fisher Information Bars</div>', unsafe_allow_html=True)
+    st.markdown("### ◈ Fisher Information Bars")
+    st.markdown("Adaptive bars close when accumulated statistical information reaches a target — not when a clock ticks.")
 
-    _sb("PRESETS")
-    pc = st.columns(3)
-    for i, (pname, pvals) in enumerate(PRESETS.items()):
-        if pc[i].button(pname, use_container_width=True, key=f"pre{i}"):
-            st.session_state["preset"] = pvals
-    p = st.session_state.get("preset", PRESETS["Balanced"])
+    # ── Presets ───────────────────────────────────────────────────────────────
+    _sb_label("PRESETS")
+    preset_cols = st.columns(3)
+    for i, pname in enumerate(PRESETS):
+        if preset_cols[i].button(pname, key=f"pre_{i}", use_container_width=True,
+                                 help=PRESETS[pname]["_desc"]):
+            st.session_state["preset"] = pname
+    active = st.session_state.get("preset", "Balanced")
+    p = PRESETS[active]
+    st.caption(f"**{active}:** {p['_desc']}")
 
-    _sb("DATA SOURCE")
-    data_source = st.radio("Source", ["Upload CSV","Synthetic data"], label_visibility="collapsed")
+    # ── Data source ───────────────────────────────────────────────────────────
+    _sb_label("DATA SOURCE")
+    data_source = st.radio("Source", ["Upload CSV", "Synthetic data"],
+                           label_visibility="collapsed")
+
     uploaded_file = None
     if data_source == "Upload CSV":
-        uploaded_file = st.file_uploader("CSV file", type=["csv"],
-            help="Required: timestamp (Unix s or ISO), price.\nOptional: size, bid, ask.")
+        uploaded_file = st.file_uploader(
+            "Upload tick data (CSV)",
+            type=["csv"],
+            help="Required columns: timestamp (Unix seconds or ISO datetime), price.\n"
+                 "Optional: size, bid, ask.",
+        )
     else:
-        n_synth    = st.slider("Events", 500, 10_000, 2_000, 500)
-        vol_regime = st.selectbox("Volatility regime", ["calm","mixed","volatile"], index=1,
-            help="calm: low vol · mixed: regime-switching · volatile: frequent stress")
-        drift_pct  = st.slider("Annual drift (%)", -50, 50, 0, 5) / 100
-        synth_seed = st.number_input("Seed", value=42, step=1)
+        n_synth    = st.slider("Number of events", 500, 10_000, 2_000, 500)
+        vol_regime = st.selectbox(
+            "Volatility regime", ["calm", "mixed", "volatile"], index=1,
+            help="calm: low, stable volatility.\n"
+                 "mixed: regime-switching (most realistic for equity/FX).\n"
+                 "volatile: frequent high-vol stress episodes.",
+        )
+        drift_pct = st.slider(
+            "Annual drift (%)", -50, 50, 0, 5,
+            help="Log-drift applied to the simulated price path per year.",
+        ) / 100
+        synth_seed = st.number_input("Random seed", value=42, step=1,
+                                     help="Fix to reproduce the same synthetic path.")
 
-    _sb("MODEL")
-    model_opts = ["gaussian","garch","hawkes"]
-    model = st.selectbox("Model", model_opts,
-        index=model_opts.index(p.get("model","garch")),
-        help=("gaussian — Local N(mu, sigma^2). Fast, near-normal returns.\n\n"
-              "garch — GARCH(1,1). Adapts to vol clustering; best for equity/FX.\n\n"
-              "hawkes — Self-exciting point process. Uses arrival intensity; good for order-flow."))
-    info_mode = st.selectbox("Information mode", ["observed","expected"],
-        help=("observed — OPG (outer product of scores). Reacts to realised path. Recommended.\n\n"
-              "expected — Analytic Fisher info. Smoother, less responsive."))
-    scalarizer = st.selectbox("Scalarizer", ["logdet","trace","frobenius"],
-        help=("logdet — log det(J+eI). Reparameterisation-invariant. Recommended.\n\n"
-              "trace — tr(J+eI). Fast, scale-sensitive.\n\n"
-              "frobenius — ||J||_F. Captures off-diagonal structure."))
+    # ── Model ─────────────────────────────────────────────────────────────────
+    _sb_label("MODEL")
+    model_opts = ["gaussian", "garch", "hawkes"]
+    model = st.selectbox(
+        "Statistical model",
+        model_opts,
+        index=model_opts.index(p.get("model", "garch")),
+        help=(
+            "gaussian — Local N(μ,σ²). Simple, fast. Best for near-normal returns.\n\n"
+            "garch — GARCH(1,1) quasi-likelihood. Adapts σ² to volatility clustering. "
+            "Best for equity and FX data.\n\n"
+            "hawkes — Self-exciting point process. Information comes from arrival "
+            "intensity λ(t), not price. Best for order-flow or event-driven data."
+        ),
+    )
+    info_mode = st.selectbox(
+        "Information mode", ["observed", "expected"],
+        help=(
+            "observed — Outer product of score gradients (OPG). Reacts to the "
+            "realised market path. Recommended for most use cases.\n\n"
+            "expected — Analytic Fisher information. Smoother but less responsive "
+            "to sudden regime changes."
+        ),
+    )
+    scalarizer = st.selectbox(
+        "Scalarizer", ["logdet", "trace", "frobenius"],
+        help=(
+            "How to reduce the n×n information matrix J to a single number:\n\n"
+            "logdet — log det(J + εI). Reparameterisation-invariant: the same bar "
+            "forms regardless of how parameters are scaled. Recommended.\n\n"
+            "trace — tr(J + εI). Fast and simple; scale-sensitive.\n\n"
+            "frobenius — ‖J‖_F. Captures off-diagonal structure; not invariant."
+        ),
+    )
 
-    _sb(f"{model.upper()} PARAMETERS")
-    if model == "gaussian":
-        var_floor = st.select_slider("Variance floor",
-            options=[1e-14,1e-12,1e-10,1e-8,1e-6], value=1e-12,
+    # ── Model-specific parameters (only show relevant ones) ───────────────────
+    with st.expander(f"{model.upper()} model parameters", expanded=False):
+        if model == "gaussian":
+            var_floor = st.select_slider(
+                "Variance floor",
+                options=[1e-14, 1e-12, 1e-10, 1e-8, 1e-6],
+                value=1e-12,
+                format_func=lambda x: f"{x:.0e}",
+                help="Minimum σ². Prevents division-by-zero when price is perfectly constant.",
+            )
+            garch_p, hawkes_fl = 0.9999, 1e-8
+        elif model == "garch":
+            garch_p = st.select_slider(
+                "Max persistence α+β",
+                options=[0.70, 0.80, 0.90, 0.95, 0.99, 0.999, 0.9999],
+                value=0.9999,
+                format_func=lambda x: f"{x:.4f}",
+                help="Cap on α+β for stationarity. Lower values force faster "
+                     "mean-reversion of the conditional variance. Must be < 1.",
+            )
+            var_floor, hawkes_fl = 1e-12, 1e-8
+        else:
+            hawkes_fl = st.select_slider(
+                "Intensity floor",
+                options=[1e-10, 1e-8, 1e-6, 1e-4],
+                value=1e-8,
+                format_func=lambda x: f"{x:.0e}",
+                help="Minimum λ(t). Prevents log(0) during periods with no arrivals.",
+            )
+            var_floor, garch_p = 1e-12, 0.9999
+
+        eps_ridge = st.select_slider(
+            "Ridge ε",
+            options=[1e-8, 1e-6, 1e-4, 1e-2],
+            value=1e-6,
             format_func=lambda x: f"{x:.0e}",
-            help="Minimum sigma^2 — prevents div-by-zero on flat price stretches.")
-        garch_p = 0.9999; hawkes_fl = 1e-8
-    elif model == "garch":
-        garch_p = st.select_slider("Max persistence (alpha+beta)",
-            options=[0.70,0.80,0.90,0.95,0.99,0.999,0.9999], value=0.9999,
-            format_func=lambda x: f"{x:.4f}",
-            help="Cap on alpha+beta. Lower forces faster vol mean-reversion. Must be < 1.")
-        var_floor = 1e-12; hawkes_fl = 1e-8
-    else:
-        hawkes_fl = st.select_slider("Intensity floor",
-            options=[1e-10,1e-8,1e-6,1e-4], value=1e-8,
-            format_func=lambda x: f"{x:.0e}",
-            help="Minimum lambda(t). Prevents log(0) in illiquid periods.")
-        var_floor = 1e-12; garch_p = 0.9999
-    eps_ridge = st.select_slider("Ridge epsilon",
-        options=[1e-8,1e-6,1e-4,1e-2], value=1e-6,
-        format_func=lambda x: f"{x:.0e}",
-        help="Added to J before scalarization: Phi(J + eI). Guards against singular matrices.")
+            help="Added to J before scalarization: Φ(J + εI). Stabilises computation "
+                 "when the information matrix is nearly singular.",
+        )
 
-    _sb("ADAPTIVE THRESHOLD")
-    eta = st.slider("eta — multiplier", 0.1, 10.0, float(p.get("eta",1.0)), 0.1,
-        help="Scales I*. Higher = fewer larger bars. Lower = more frequent bars.\nRule of thumb: halve eta if bars are too few.")
-    delta0 = st.slider("delta0 — reference duration (s)", 1.0, 600.0, float(p.get("delta0",60.0)), 1.0,
-        help="Target bar duration at long-run information rate. Set to your desired average bar length.")
-    ewma_a = st.slider("EWMA alpha", 0.01, 0.50, float(p.get("ewma_a",0.05)), 0.01,
-        help="Smoothing for long-run rate estimate. Lower = slower, more stable. Higher = faster adaptation.")
-    min_wu = st.number_input("Warmup bars", min_value=1, max_value=100, value=int(p.get("min_wu",10)),
-        help="Bars before EWMA is trusted. Set lower (3-5) to start adapting sooner.")
+    # ── Adaptive threshold ────────────────────────────────────────────────────
+    _sb_label("ADAPTIVE THRESHOLD")
+    c1, c2 = st.columns([3, 1])
+    eta = c1.slider("η multiplier", 0.1, 10.0, float(p["eta"]), 0.1,
+                    help="Scales the information quantum I*. Higher → fewer, larger bars. "
+                         "Lower → more frequent bars. Start at 1.0 and halve if too few bars form.")
+    eta = float(c2.number_input("η", value=eta, min_value=0.01, max_value=20.0,
+                                format="%.2f", label_visibility="collapsed", key="eta_num"))
 
-    _sb("SAFETY VALVES")
-    timeout_s = st.number_input("Bar timeout (s)", min_value=1.0, value=float(p.get("timeout_s",300.0)), step=10.0,
-        help="Max wall-clock seconds any bar may stay open.")
-    use_inact = st.checkbox("Inactivity timeout",
-        help="Close a bar if no tick arrives for N seconds. Useful for illiquid assets.")
-    inact_s: Optional[float] = None
-    if use_inact:
-        inact_s = st.number_input("Gap (s)", min_value=1.0, value=60.0, step=5.0,
-            help="Seconds of silence that trigger a bar close.")
-    max_ev = st.number_input("Max events/bar", min_value=10, value=int(p.get("max_ev",5000)), step=100,
-        help="Hard cap on ticks per bar — safety valve against runaway accumulation.")
+    c3, c4 = st.columns([3, 1])
+    delta0 = c3.slider("δ₀ reference duration (s)", 1.0, 600.0, float(p["delta0"]), 1.0,
+                       help="Target bar duration in seconds. At equilibrium, average bar "
+                            "duration ≈ δ₀. Set to your desired typical bar length.")
+    delta0 = float(c4.number_input("δ₀", value=delta0, min_value=0.1, max_value=3600.0,
+                                   format="%.1f", label_visibility="collapsed", key="d0_num"))
 
-    _sb("BASELINE COMPARISON")
-    show_bl = st.checkbox("Show baseline", value=True,
-        help="Compare FIB bars against a conventional bar scheme.")
-    bl_type = st.selectbox("Type", ["time","tick","volume","dollar"],
-        help="time: fixed duration · tick: fixed count · volume: fixed volume · dollar: fixed dollar value")
-    if bl_type=="time":     bl_p = st.number_input("Seconds/bar", min_value=1.0, value=60.0)
-    elif bl_type=="tick":   bl_p = st.number_input("Ticks/bar", min_value=2, value=50, step=5)
-    elif bl_type=="volume": bl_p = st.number_input("Volume/bar", min_value=1.0, value=1000.0)
-    else:                   bl_p = st.number_input("Dollar/bar", min_value=1.0, value=100_000.0)
+    c5, c6 = st.columns([3, 1])
+    ewma_a = c5.slider("EWMA α", 0.01, 0.50, float(p["ewma_a"]), 0.01,
+                       help="Smoothing for the long-run information rate estimate. "
+                            "Lower = more stable threshold. Higher = faster adaptation to regime changes.")
+    ewma_a = float(c6.number_input("α", value=ewma_a, min_value=0.001, max_value=1.0,
+                                   format="%.3f", label_visibility="collapsed", key="a_num"))
+
+    min_wu = st.number_input(
+        "Warmup bars", min_value=1, max_value=100, value=int(p["min_wu"]),
+        help="Number of completed bars before the EWMA threshold is trusted. "
+             "During warmup, I* seeds from the first observed scalar. "
+             "Use 3–5 for short datasets, 20+ for stable long-run estimation.",
+    )
+
+    # ── Safety valves ─────────────────────────────────────────────────────────
+    with st.expander("Safety valves & timeouts", expanded=False):
+        timeout_s = st.number_input(
+            "Bar timeout (s)", min_value=1.0, value=float(p["timeout_s"]), step=10.0,
+            help="Maximum wall-clock seconds any bar may stay open. "
+                 "Prevents bar starvation in dead markets.",
+        )
+        use_inact = st.checkbox(
+            "Inactivity timeout",
+            help="Close a bar when no new tick has arrived for N seconds. "
+                 "Useful for illiquid assets with extended quiet periods.",
+        )
+        inact_s: Optional[float] = None
+        if use_inact:
+            inact_s = st.number_input(
+                "Inactivity gap (s)", min_value=1.0, value=60.0, step=5.0,
+                help="Seconds of silence that trigger an inactivity bar close.",
+            )
+        max_ev = st.number_input(
+            "Max events per bar", min_value=10, value=int(p["max_ev"]), step=100,
+            help="Hard cap on ticks per bar. A safety valve against runaway "
+                 "accumulation in low-volatility environments.",
+        )
+
+    # ── Baseline comparison ───────────────────────────────────────────────────
+    with st.expander("Baseline comparison", expanded=False):
+        show_bl = st.checkbox("Compute baseline bars", value=True,
+                              help="Build a conventional bar scheme to compare against FIBs.")
+        bl_type = st.selectbox(
+            "Baseline type", ["time", "tick", "volume", "dollar"],
+            help="time: fixed wall-clock duration.\ntick: fixed event count.\n"
+                 "volume: fixed cumulative size.\ndollar: fixed cumulative price×size.",
+        )
+        if bl_type == "time":     bl_p = st.number_input("Seconds / bar",  min_value=1.0,  value=60.0)
+        elif bl_type == "tick":   bl_p = st.number_input("Ticks / bar",    min_value=2,    value=50, step=5)
+        elif bl_type == "volume": bl_p = st.number_input("Volume / bar",   min_value=1.0,  value=1000.0)
+        else:                     bl_p = st.number_input("Dollar / bar",   min_value=1.0,  value=100_000.0)
 
     st.divider()
     run_btn = st.button("◈  Build FIB Bars", type="primary", use_container_width=True)
 
-# ── Page header ────────────────────────────────────────────────────────────────
-st.markdown("""<div class="page-header">
-  <span class="page-title">Fisher Information Bars</span>
-  <span class="page-sub">A bar closes when &sum; &Psi;&sub;i;(&theta;&#x302;) &ge; I* &mdash; not when a clock ticks</span>
-</div>""", unsafe_allow_html=True)
 
-# ── Load data ──────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# MAIN PANEL
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown(
+    '<div class="page-title">Fisher Information Bars</div>'
+    '<div class="page-sub">Bar closes when Σ Ψᵢ(θ̂) ≥ I* &nbsp;·&nbsp; '
+    'information-geometric financial sampling</div>',
+    unsafe_allow_html=True,
+)
+
+# ── Load / generate data ───────────────────────────────────────────────────────
 raw_df = None
-if data_source == "Upload CSV" and uploaded_file is not None:
-    try: raw_df = pd.read_csv(uploaded_file)
-    except Exception as e: st.error(f"Failed to read CSV: {e}"); st.stop()
-elif data_source == "Synthetic data":
-    raw_df = _synthetic(n=n_synth, seed=int(synth_seed), vol_regime=vol_regime, drift=drift_pct)
-    with st.expander("Synthetic data summary", expanded=False):
-        c1,c2,c3,c4 = st.columns(4)
-        c1.metric("Events", f"{len(raw_df):,}")
-        c2.metric("Price range", f"{raw_df['price'].min():.2f} to {raw_df['price'].max():.2f}")
-        c3.metric("Duration", f"{raw_df['timestamp'].max():.1f}s")
-        c4.metric("Regime", vol_regime)
-        st.caption(f"Regime-switching GBM · vol={vol_regime} · drift={drift_pct*100:+.0f}%/yr · seed={synth_seed}. Timestamps are seconds from session start.")
+if data_source == "Upload CSV":
+    if uploaded_file is not None:
+        try:
+            raw_df = pd.read_csv(uploaded_file)
+        except Exception as e:
+            st.error(f"Failed to read CSV: {e}")
+            st.stop()
+else:
+    raw_df = _synthetic(n=n_synth, seed=int(synth_seed),
+                        vol_regime=vol_regime, drift=drift_pct)
 
+# ── Landing state ─────────────────────────────────────────────────────────────
 if raw_df is None:
-    st.markdown("""<div style="margin-top:2rem;padding:2rem;border:1px dashed rgba(255,255,255,0.12);
-border-radius:10px;text-align:center;color:#7A7F8E;font-size:.85rem">
-<div style="font-size:2rem;margin-bottom:.5rem">◈</div>
-Upload a CSV or choose <strong>Synthetic data</strong> in the sidebar, then click <strong>◈ Build FIB Bars</strong>.
-</div>""", unsafe_allow_html=True)
-    with st.expander("Expected CSV format"):
+    st.markdown("<br>", unsafe_allow_html=True)
+    _callout(
+        "Upload a CSV file using the sidebar, then click <strong>◈ Build FIB Bars</strong>.",
+        "info",
+    )
+    with st.expander("Expected CSV format", expanded=True):
         st.markdown("""
-| Column | Required | Notes |
-|--------|----------|-------|
-| `timestamp` | ✅ | Unix seconds (float) or ISO datetime string |
-| `price` | ✅ | Last trade price or mid-quote |
-| `size` | optional | Trade size / contracts |
-| `bid` | optional | Best bid — enables spread features |
-| `ask` | optional | Best ask — enables spread features |
+| Column | Required | Type | Notes |
+|--------|----------|------|-------|
+| `timestamp` | ✅ | float / datetime | Unix seconds or ISO 8601 string |
+| `price` | ✅ | float | Last trade price or mid-quote |
+| `size` | optional | float | Trade size / contracts |
+| `bid` | optional | float | Best bid — enables spread features |
+| `ask` | optional | float | Best ask — enables spread features |
 """)
     st.stop()
 
-# ── Column mapping ─────────────────────────────────────────────────────────────
+# ── Section 1: Data preview ────────────────────────────────────────────────────
 _sh("01 · DATA PREVIEW")
+
 cols = list(raw_df.columns)
-with st.expander("Column mapping", expanded=False):
-    c1,c2,c3,c4,c5 = st.columns(5)
-    ts_col  = c1.selectbox("timestamp", cols, index=next((i for i,c in enumerate(cols) if "time" in c.lower()),0))
-    px_col  = c2.selectbox("price", cols, index=next((i for i,c in enumerate(cols) if "price" in c.lower() or "mid" in c.lower()),0))
-    sz_col  = c3.selectbox("size (opt)", ["(none)"]+cols)
-    bid_col = c4.selectbox("bid (opt)",  ["(none)"]+cols)
-    ask_col = c5.selectbox("ask (opt)",  ["(none)"]+cols)
+
+# Auto-detect columns
+def _find(cols, patterns, default=0):
+    for i, c in enumerate(cols):
+        if any(p in c.lower() for p in patterns):
+            return i
+    return default
+
+if data_source == "Upload CSV":
+    with st.expander("Column mapping", expanded=True):
+        mc1, mc2, mc3, mc4, mc5 = st.columns(5)
+        ts_col  = mc1.selectbox("timestamp", cols, index=_find(cols, ["time","ts","date"]))
+        px_col  = mc2.selectbox("price",     cols, index=_find(cols, ["price","mid","close","last"]))
+        sz_col  = mc3.selectbox("size (opt)", ["(none)"] + cols,
+                                index=_find(["(none)"]+cols, ["size","qty","vol","amount"])+0)
+        bid_col = mc4.selectbox("bid (opt)",  ["(none)"] + cols,
+                                index=_find(["(none)"]+cols, ["bid"])+0)
+        ask_col = mc5.selectbox("ask (opt)",  ["(none)"] + cols,
+                                index=_find(["(none)"]+cols, ["ask","offer"])+0)
+else:
+    # Synthetic — columns are fixed
+    ts_col = "timestamp"; px_col = "price"
+    sz_col = "size"; bid_col = "bid"; ask_col = "ask"
 
 mapped: dict = {"timestamp": raw_df[ts_col], "price": raw_df[px_col]}
-if sz_col  != "(none)": mapped["size"] = raw_df[sz_col]
-if bid_col != "(none)": mapped["bid"]  = raw_df[bid_col]
-if ask_col != "(none)": mapped["ask"]  = raw_df[ask_col]
+if sz_col  not in ("(none)", None) and sz_col  in raw_df.columns: mapped["size"] = raw_df[sz_col]
+if bid_col not in ("(none)", None) and bid_col in raw_df.columns: mapped["bid"]  = raw_df[bid_col]
+if ask_col not in ("(none)", None) and ask_col in raw_df.columns: mapped["ask"]  = raw_df[ask_col]
 mapped_df = _coerce_ts(pd.DataFrame(mapped), "timestamp")
 
-st.dataframe(mapped_df.head(200), use_container_width=True, height=180)
-st.caption(f"{len(mapped_df):,} rows · columns: {list(mapped_df.columns)}")
+# Synthetic summary strip
+if data_source == "Synthetic data":
+    sc1, sc2, sc3, sc4, sc5 = st.columns(5)
+    sc1.metric("Events",       f"{len(mapped_df):,}")
+    sc2.metric("Price min",    f"{mapped_df['price'].min():.2f}")
+    sc3.metric("Price max",    f"{mapped_df['price'].max():.2f}")
+    sc4.metric("Duration",     f"{mapped_df['timestamp'].max():.1f}s")
+    sc5.metric("Regime",       vol_regime)
+    st.caption(
+        f"Regime-switching GBM · volatility={vol_regime} · "
+        f"drift={drift_pct*100:+.0f}%/yr · seed={synth_seed}. "
+        "Timestamps are elapsed seconds from session start."
+    )
+
+st.dataframe(mapped_df.head(200), use_container_width=True, height=175)
+st.caption(f"{len(mapped_df):,} rows · mapped columns: {list(mapped_df.columns)}")
 
 if not run_btn:
-    st.markdown('<div style="margin-top:1rem;font-size:.82rem;color:#7A7F8E">← Configure in the sidebar and click <strong>◈ Build FIB Bars</strong></div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    _callout(
+        "Configure parameters in the sidebar, then click "
+        "<strong>◈ Build FIB Bars</strong> to run.",
+        "info",
+    )
     st.stop()
 
-# ── Build ──────────────────────────────────────────────────────────────────────
+# ── Build FIB bars ─────────────────────────────────────────────────────────────
 try:
     cfg = FIBConfig(
         model=model, info_mode=info_mode, scalarizer=scalarizer,
-        eta=eta, delta0_seconds=float(delta0), ewma_alpha=ewma_a,
+        eta=float(eta), delta0_seconds=float(delta0), ewma_alpha=float(ewma_a),
         eps_ridge=float(eps_ridge), timeout_seconds=float(timeout_s),
         max_events_per_bar=int(max_ev), inactivity_timeout_seconds=inact_s,
         min_warmup_events=int(min_wu), var_floor=float(var_floor),
         garch_persistence_max=float(garch_p), hawkes_intensity_floor=float(hawkes_fl),
     )
 except ValueError as e:
-    st.error(f"Configuration error: {e}"); st.stop()
+    st.error(f"Configuration error: {e}")
+    st.stop()
 
-with st.spinner("Building FIB bars..."):
-    try: bars_df = build_fib_bars(mapped_df, config=cfg)
-    except Exception: st.error("FIB build failed:"); st.code(traceback.format_exc()); st.stop()
+with st.spinner("Building FIB bars…"):
+    try:
+        bars_df = build_fib_bars(mapped_df, config=cfg)
+    except Exception:
+        st.error("FIB build failed — see traceback below.")
+        st.code(traceback.format_exc())
+        st.stop()
 
 if bars_df.empty:
-    _callout("No bars produced. Try reducing eta, lowering delta0, or increasing timeout.", "warn")
+    _callout(
+        "No bars produced. Try reducing η or δ₀, or increasing the bar timeout.",
+        "warn",
+    )
     st.stop()
 
 aug_df = augment_with_fib_features(bars_df)
 sm = _summary(bars_df)
 
+# Baseline
 bl_df = None
 if show_bl:
-    with st.spinner("Building baseline bars..."):
+    with st.spinner("Building baseline bars…"):
         try:
             kw = {}
-            if bl_type=="time":     kw={"seconds_per_bar":float(bl_p)}
-            elif bl_type=="tick":   kw={"ticks_per_bar":int(bl_p)}
-            elif bl_type=="volume": kw={"volume_per_bar":float(bl_p)}
-            else:                   kw={"dollar_per_bar":float(bl_p)}
+            if bl_type == "time":     kw = {"seconds_per_bar": float(bl_p)}
+            elif bl_type == "tick":   kw = {"ticks_per_bar": int(bl_p)}
+            elif bl_type == "volume": kw = {"volume_per_bar": float(bl_p)}
+            else:                     kw = {"dollar_per_bar": float(bl_p)}
             bl_df = build_baseline_bars(mapped_df, bar_type=bl_type, **kw)
-        except Exception: st.warning("Baseline build failed.")
+        except Exception:
+            st.warning("Baseline build failed — comparison unavailable.")
+bsm = _summary(bl_df) if bl_df is not None and not bl_df.empty else {}
 
-# ── Diagnostic warnings ────────────────────────────────────────────────────────
-timeout_pct = 100 - sm["pct_thr"]
+# ── Automatic diagnostics ──────────────────────────────────────────────────────
+timeout_pct = 100.0 - sm["pct_thr"]
 if timeout_pct > 60:
-    _callout(f"{timeout_pct:.0f}% of bars closed on timeout/flush — not information threshold. "
-             "Threshold may be too high. Try reducing eta or delta0.", "warn")
+    _callout(
+        f"<strong>{timeout_pct:.0f}%</strong> of bars closed via timeout/flush rather than "
+        "the information threshold. The threshold may be set too high. "
+        "Try reducing <strong>η</strong> or <strong>δ₀</strong>.",
+        "warn",
+    )
+if sm.get("cv_events", 0) > 1.5:
+    _callout(
+        f"CV of events/bar = <strong>{sm['cv_events']:.2f}</strong> (high). "
+        "Bars are very uneven in size. Consider lowering EWMA α for a more stable threshold, "
+        "or switching to GARCH if the data has volatility clustering.",
+        "warn",
+    )
 if "size" not in mapped_df.columns:
     _callout("size column not mapped — volume and dollar-value features will be zero.", "warn")
 if "bid" not in mapped_df.columns or "ask" not in mapped_df.columns:
-    _callout("bid/ask not mapped — spread features unavailable.", "warn")
-if sm["cv_events"] > 1.5:
-    _callout(f"CV of events/bar = {sm['cv_events']:.2f} (high). "
-             "Bars are very uneven — consider tuning eta or switching to GARCH.", "warn")
+    _callout("bid/ask columns not mapped — spread features will be unavailable.", "warn")
+if sm["n_bars"] < 5:
+    _callout(
+        f"Only <strong>{sm['n_bars']}</strong> bars produced. The first bar seeds the "
+        "threshold; very few bars may indicate η is too high or data is too short. "
+        "Try the <strong>Fast</strong> preset or reduce η.",
+        "warn",
+    )
+if timeout_pct == 0 and sm["n_bars"] > 3:
+    _callout(
+        "All bars closed on the information threshold. The algorithm is working well.",
+        "good",
+    )
 
 st.divider()
 
-# ── KPI row ────────────────────────────────────────────────────────────────────
+# ── Section 2: Summary metrics ─────────────────────────────────────────────────
 _sh("02 · SUMMARY METRICS")
-bsm = _summary(bl_df) if bl_df is not None and not bl_df.empty else {}
 
-row1 = '<div class="kpi-grid">'
-row1 += _kpi("FIB Bars", f"{sm['n_bars']:,}", f"vs {bsm.get('n_bars','—')} {bl_type}" if bsm else "", accent=True)
-row1 += _kpi("Avg Events / Bar", f"{sm['avg_events']:.0f}", f"CV = {sm['cv_events']:.2f}")
-row1 += _kpi("Avg Duration", f"{sm['avg_dur']:.1f}s", f"median {sm['med_dur']:.1f}s")
-row1 += _kpi("Threshold Close", f"{sm['pct_thr']:.0f}%", "bars that hit I*")
-row1 += '</div>'
-row2 = '<div class="kpi-grid">'
-row2 += _kpi("Avg Info Scalar", f"{sm['avg_info']:.3g}", f"median {sm['med_info']:.3g}")
-row2 += _kpi("Model", model.upper(), info_mode)
-row2 += _kpi("Scalarizer", scalarizer, f"eps = {eps_ridge:.0e}")
-row2 += _kpi("eta / delta0", f"{eta} / {delta0}s", f"alpha = {ewma_a}")
-row2 += '</div>'
-st.markdown(row1 + row2, unsafe_allow_html=True)
+thr_style = "kpi-good" if sm["pct_thr"] >= 50 else "kpi-warn"
+r1 = "".join([
+    _kpi("FIB bars",          f"{sm['n_bars']:,}",
+         f"vs {bsm.get('n_bars','—')} {bl_type} baseline" if bsm else "", "kpi-accent"),
+    _kpi("Avg events / bar",  f"{sm['avg_events']:.0f}",
+         f"CV = {sm['cv_events']:.2f}"),
+    _kpi("Avg duration",      f"{sm['avg_dur']:.1f}s",
+         f"median {sm['med_dur']:.1f}s"),
+    _kpi("Threshold closes",  f"{sm['pct_thr']:.0f}%",
+         "bars that hit I*", thr_style),
+])
+r2 = "".join([
+    _kpi("Avg info scalar",   f"{sm['avg_info']:.3g}",
+         f"median {sm['med_info']:.3g}"),
+    _kpi("Model",             model.upper(), info_mode),
+    _kpi("Scalarizer",        scalarizer, f"ε = {eps_ridge:.0e}"),
+    _kpi("η / δ₀",            f"{eta} / {delta0}s", f"EWMA α = {ewma_a}"),
+])
+st.markdown(
+    f'<div class="kpi-row">{r1}</div><div class="kpi-row">{r2}</div>',
+    unsafe_allow_html=True,
+)
 
 if bsm:
-    c1,c2,c3,c4 = st.columns(4)
-    c1.metric("Baseline bars", f"{bsm['n_bars']:,}", f"{bsm['n_bars']-sm['n_bars']:+,} vs FIB")
-    c2.metric("Avg events/bar (baseline)", f"{bsm['avg_events']:.0f}")
-    c3.metric("CV events/bar (FIB)", f"{sm['cv_events']:.2f}",
-              f"{sm['cv_events']-bsm['cv_events']:+.2f} vs baseline", delta_color="inverse")
-    c4.metric("Avg duration (baseline)", f"{bsm['avg_dur']:.1f}s")
+    bc1, bc2, bc3, bc4 = st.columns(4)
+    cv_delta = sm["cv_events"] - bsm["cv_events"]
+    bc1.metric("Baseline bars",          f"{bsm['n_bars']:,}",
+               f"{bsm['n_bars'] - sm['n_bars']:+,} vs FIB")
+    bc2.metric("Avg events / bar (BL)",  f"{bsm['avg_events']:.0f}")
+    bc3.metric("CV events / bar (FIB)",  f"{sm['cv_events']:.2f}",
+               f"{cv_delta:+.2f} vs baseline", delta_color="inverse")
+    bc4.metric("Avg duration (BL)",      f"{bsm['avg_dur']:.1f}s")
 
 st.divider()
 
-# ── Charts ─────────────────────────────────────────────────────────────────────
+# ── Section 3: Charts ──────────────────────────────────────────────────────────
 _sh("03 · CHARTS")
 
-# Price + boundaries
-fig_p = go.Figure()
-fig_p.add_trace(go.Scatter(x=mapped_df["timestamp"], y=mapped_df["price"],
-    mode="lines", name="Price", line=dict(color="#4A90D9", width=1)))
-for _, row in bars_df[bars_df["close_reason"].isin(["timeout","inactivity","max_events","flush"])].iterrows():
-    fig_p.add_vrect(x0=row["open_time"], x1=row["close_time"],
-                    fillcolor="#F0A84A", opacity=0.07, line_width=0)
-for _, row in bars_df[bars_df["close_reason"]=="threshold"].iterrows():
-    fig_p.add_vline(x=row["close_time"], line_color="#C8F04A", line_width=0.8, opacity=0.5)
-fig_p.add_trace(go.Scatter(x=bars_df["open_time"], y=bars_df["open"],
+# ── 3a: Price series ──────────────────────────────────────────────────────────
+_legend(
+    ("Threshold close", C["threshold"]),
+    ("Timeout / flush", C["timeout"]),
+    ("Bar open", C["threshold"]),
+    ("Bar close", C["timeout"]),
+)
+fig_price = go.Figure()
+fig_price.add_trace(go.Scatter(
+    x=mapped_df["timestamp"], y=mapped_df["price"],
+    mode="lines", name="Price",
+    line=dict(color=C["price"], width=1),
+))
+
+# Shade timeout/flush regions
+for _, row in bars_df[bars_df["close_reason"].isin(
+        ["timeout", "inactivity", "max_events", "flush"])].iterrows():
+    fig_price.add_vrect(
+        x0=row["open_time"], x1=row["close_time"],
+        fillcolor=C["timeout"], opacity=0.07, line_width=0,
+    )
+
+# Threshold-close vertical marks
+for _, row in bars_df[bars_df["close_reason"] == "threshold"].iterrows():
+    fig_price.add_vline(
+        x=row["close_time"],
+        line_color=C["threshold"], line_width=0.9, opacity=0.45,
+    )
+
+hover_idx = aug_df["bar_index"].values if "bar_index" in aug_df.columns \
+    else np.arange(len(bars_df))
+
+fig_price.add_trace(go.Scatter(
+    x=bars_df["open_time"], y=bars_df["open"],
     mode="markers", name="Bar open",
-    marker=dict(color="#C8F04A", size=6, symbol="triangle-up"),
-    hovertemplate="Open t=%{x:.2f} price=%{y:.4f}<extra></extra>"))
-
-hover_idx = aug_df["bar_index"].values if "bar_index" in aug_df.columns else np.arange(len(bars_df))
-fig_p.add_trace(go.Scatter(x=bars_df["close_time"], y=bars_df["close"],
+    marker=dict(color=C["threshold"], size=6, symbol="triangle-up",
+                line=dict(color="white", width=1)),
+    hovertemplate="Open — bar %{customdata}<br>t = %{x:.2f}s<br>price = %{y:.4f}<extra></extra>",
+    customdata=hover_idx,
+))
+fig_price.add_trace(go.Scatter(
+    x=bars_df["close_time"], y=bars_df["close"],
     mode="markers", name="Bar close",
-    marker=dict(color="#F04A4A", size=6, symbol="triangle-down"),
-    customdata=np.column_stack([hover_idx, bars_df["close_reason"], bars_df["information_scalar"]]),
-    hovertemplate="Bar %{customdata[0]}<br>t=%{x:.2f} price=%{y:.4f}<br>reason=%{customdata[1]}<br>Phi=%{customdata[2]:.4f}<extra></extra>"))
-fig_p.update_layout(template=PT, height=320,
-    title="Price with FIB boundaries  (green line = threshold close  |  orange shade = timeout)",
+    marker=dict(
+        color=[C.get(r, C["flush"]) for r in bars_df["close_reason"]],
+        size=6, symbol="triangle-down",
+        line=dict(color="white", width=1),
+    ),
+    customdata=np.column_stack([
+        hover_idx,
+        bars_df["close_reason"].values,
+        bars_df["information_scalar"].values,
+    ]),
+    hovertemplate=(
+        "Close — bar %{customdata[0]}<br>"
+        "t = %{x:.2f}s<br>price = %{y:.4f}<br>"
+        "reason = %{customdata[1]}<br>"
+        "Φ(J) = %{customdata[2]:.4f}<extra></extra>"
+    ),
+))
+fig_price.update_layout(
+    template=PT, height=320,
+    title="Price with FIB bar boundaries",
     xaxis_title="Time (s)", yaxis_title="Price",
-    margin=dict(l=50,r=20,t=42,b=40), legend=dict(orientation="h",y=-0.2,font_size=11))
-st.plotly_chart(fig_p, use_container_width=True)
+    margin=dict(l=50, r=20, t=42, b=40),
+    legend=dict(orientation="h", y=-0.2, font_size=11),
+    plot_bgcolor="white",
+)
+st.plotly_chart(fig_price, use_container_width=True)
 
-ca, cb = st.columns(2)
-with ca:
-    fig_dur = px.histogram(bars_df, x="duration_seconds",
-        nbins=min(40,max(10,sm["n_bars"])), color="close_reason",
-        color_discrete_map=CRMAP, template=PT,
-        labels={"duration_seconds":"Duration (s)","close_reason":"Reason"},
-        title="Bar duration distribution")
-    fig_dur.update_layout(height=280, margin=dict(l=40,r=10,t=40,b=40),
-                          bargap=0.05, legend_title_text="")
+# ── 3b: Duration + events histograms ─────────────────────────────────────────
+col_a, col_b = st.columns(2)
+nbins = min(40, max(10, sm["n_bars"]))
+
+with col_a:
+    fig_dur = px.histogram(
+        bars_df, x="duration_seconds", nbins=nbins,
+        color="close_reason", color_discrete_map=CRMAP,
+        template=PT,
+        labels={"duration_seconds": "Duration (s)", "close_reason": "Close reason"},
+        title="Bar duration",
+    )
+    fig_dur.update_layout(
+        height=270, bargap=0.05, legend_title_text="",
+        margin=dict(l=45, r=10, t=42, b=40),
+        plot_bgcolor="white",
+        xaxis_title="Duration (s)", yaxis_title="Count",
+    )
     st.plotly_chart(fig_dur, use_container_width=True)
-with cb:
-    fig_ne = px.histogram(bars_df, x="n_events",
-        nbins=min(40,max(10,sm["n_bars"])), color="close_reason",
-        color_discrete_map=CRMAP, template=PT,
-        labels={"n_events":"Events / bar","close_reason":"Reason"},
-        title="Events per bar distribution")
-    fig_ne.update_layout(height=280, margin=dict(l=40,r=10,t=40,b=40),
-                         bargap=0.05, legend_title_text="")
+
+with col_b:
+    fig_ne = px.histogram(
+        bars_df, x="n_events", nbins=nbins,
+        color="close_reason", color_discrete_map=CRMAP,
+        template=PT,
+        labels={"n_events": "Events per bar", "close_reason": "Close reason"},
+        title="Events per bar",
+    )
+    fig_ne.update_layout(
+        height=270, bargap=0.05, legend_title_text="",
+        margin=dict(l=45, r=10, t=42, b=40),
+        plot_bgcolor="white",
+        xaxis_title="Events per bar", yaxis_title="Count",
+    )
     st.plotly_chart(fig_ne, use_container_width=True)
 
-fig_info = make_subplots(specs=[[{"secondary_y":True}]])
-fig_info.add_trace(go.Scatter(x=aug_df["bar_index"], y=aug_df["information_scalar"],
-    name="Phi(J) scalar", line=dict(color="#C8F04A",width=2),
-    hovertemplate="Bar %{x}<br>Phi=%{y:.4f}<extra></extra>"), secondary_y=False)
-fig_info.add_trace(go.Scatter(x=aug_df["bar_index"], y=aug_df["threshold_at_close"],
-    name="I* threshold", line=dict(color="#F0A84A",width=1.5,dash="dash"),
-    hovertemplate="Bar %{x}<br>I*=%{y:.4f}<extra></extra>"), secondary_y=False)
-fig_info.add_trace(go.Bar(x=aug_df["bar_index"],
-    y=aug_df["threshold_utilization"].clip(-2,2),
-    name="Utilization",
-    marker=dict(color=aug_df["threshold_utilization"].clip(-2,2),
-                colorscale=[[0,"#F04A4A"],[0.5,"#7A7F8E"],[1,"#C8F04A"]],
-                cmin=-0.5, cmax=1.5),
-    opacity=0.45,
-    hovertemplate="Bar %{x}<br>Util=%{y:.2f}<extra></extra>"), secondary_y=True)
-fig_info.update_layout(template=PT, height=310,
-    title="Information scalar Phi(J) vs adaptive threshold I*",
+# ── 3c: Information scalar vs threshold ──────────────────────────────────────
+fig_info = make_subplots(specs=[[{"secondary_y": True}]])
+fig_info.add_trace(go.Scatter(
+    x=aug_df["bar_index"], y=aug_df["information_scalar"],
+    name="Φ(J) — accumulated information",
+    line=dict(color=C["scalar"], width=2),
+    hovertemplate="Bar %{x}<br>Φ(J) = %{y:.4f}<extra></extra>",
+), secondary_y=False)
+fig_info.add_trace(go.Scatter(
+    x=aug_df["bar_index"], y=aug_df["threshold_at_close"],
+    name="I* — adaptive threshold",
+    line=dict(color=C["threshold_line"], width=1.5, dash="dash"),
+    hovertemplate="Bar %{x}<br>I* = %{y:.4f}<extra></extra>",
+), secondary_y=False)
+util_clipped = aug_df["threshold_utilization"].clip(-2, 2)
+fig_info.add_trace(go.Bar(
+    x=aug_df["bar_index"], y=util_clipped,
+    name="Utilisation Φ/I*",
+    marker=dict(
+        color=util_clipped,
+        colorscale=[[0, "#FCA5A5"], [0.4, "#E5E7EB"], [1, "#93C5FD"]],
+        cmin=0, cmax=1.2,
+    ),
+    opacity=0.5,
+    hovertemplate="Bar %{x}<br>Utilisation = %{y:.2f}<extra></extra>",
+), secondary_y=True)
+fig_info.update_layout(
+    template=PT, height=300,
+    title="Information scalar Φ(J) vs adaptive threshold I*",
     xaxis_title="Bar index",
-    margin=dict(l=50,r=60,t=42,b=50),
-    legend=dict(orientation="h",y=-0.22,font_size=11))
-fig_info.update_yaxes(title_text="Phi(J) / I*", secondary_y=False)
-fig_info.update_yaxes(title_text="Utilization", secondary_y=True)
+    margin=dict(l=50, r=65, t=42, b=50),
+    legend=dict(orientation="h", y=-0.24, font_size=11),
+    plot_bgcolor="white",
+)
+fig_info.update_yaxes(title_text="Φ(J) / I*", secondary_y=False)
+fig_info.update_yaxes(title_text="Utilisation ratio", secondary_y=True, showgrid=False)
 st.plotly_chart(fig_info, use_container_width=True)
 
-cc, cd = st.columns(2)
-with cc:
-    fig_rate = go.Figure(go.Scatter(x=aug_df["bar_index"], y=aug_df["information_rate"],
-        mode="lines+markers", line=dict(color="#4AF0C8",width=1.5),
-        marker=dict(size=5, color=aug_df["information_rate"],
-                    colorscale="Teal", showscale=False),
-        hovertemplate="Bar %{x}<br>Rate=%{y:.4f} Phi/s<extra></extra>"))
-    fig_rate.update_layout(template=PT, height=280,
-        title="Information rate (Phi / second)",
-        xaxis_title="Bar index", yaxis_title="Phi/s",
-        margin=dict(l=50,r=10,t=42,b=40))
+# ── 3d: Information rate + close-reason donut ─────────────────────────────────
+col_c, col_d = st.columns(2)
+
+with col_c:
+    fig_rate = go.Figure(go.Scatter(
+        x=aug_df["bar_index"], y=aug_df["information_rate"],
+        mode="lines+markers",
+        line=dict(color=C["rate"], width=1.5),
+        marker=dict(size=5, color=C["rate"]),
+        hovertemplate="Bar %{x}<br>Rate = %{y:.4f} Φ/s<extra></extra>",
+    ))
+    fig_rate.update_layout(
+        template=PT, height=265,
+        title="Information rate (Φ per second)",
+        xaxis_title="Bar index", yaxis_title="Φ / s",
+        margin=dict(l=50, r=10, t=42, b=40),
+        plot_bgcolor="white",
+    )
     st.plotly_chart(fig_rate, use_container_width=True)
-with cd:
+
+with col_d:
     rc = bars_df["close_reason"].value_counts()
-    fig_pie = go.Figure(go.Pie(labels=rc.index, values=rc.values,
-        marker=dict(colors=[CRMAP.get(r,"#7A7F8E") for r in rc.index],
-                    line=dict(color="#0b0d11",width=2)),
-        hole=0.52, textinfo="label+percent", textfont_size=11,
-        hovertemplate="%{label}: %{value} bars (%{percent})<extra></extra>"))
-    fig_pie.update_layout(template=PT, height=280, title="Bar close reasons",
-        margin=dict(l=10,r=10,t=42,b=10), showlegend=False)
+    fig_pie = go.Figure(go.Pie(
+        labels=rc.index, values=rc.values,
+        marker=dict(
+            colors=[CRMAP.get(r, "#9CA3AF") for r in rc.index],
+            line=dict(color="white", width=2),
+        ),
+        hole=0.52,
+        textinfo="label+percent",
+        textfont=dict(size=11, color="#374151"),
+        hovertemplate="%{label}: %{value} bars (%{percent})<extra></extra>",
+    ))
+    fig_pie.update_layout(
+        template=PT, height=265,
+        title="Bar close reasons",
+        margin=dict(l=10, r=10, t=42, b=10),
+        showlegend=False,
+    )
     st.plotly_chart(fig_pie, use_container_width=True)
 
+# ── 3e: FIB vs Baseline ───────────────────────────────────────────────────────
 if bl_df is not None and not bl_df.empty:
     _sh("04 · FIB vs BASELINE")
-    ce, cf = st.columns(2)
-    with ce:
+    _legend(("FIB", C["fib"]), (f"Baseline ({bl_type})", C["baseline"]))
+    col_e, col_f = st.columns(2)
+
+    with col_e:
         fig_cmp = go.Figure()
-        fig_cmp.add_trace(go.Histogram(x=bars_df["n_events"], name="FIB",
-            opacity=0.72, marker_color="#C8F04A", nbinsx=30))
-        fig_cmp.add_trace(go.Histogram(x=bl_df["n_events"],
-            name=f"Baseline ({bl_type})", opacity=0.55, marker_color="#F0A84A", nbinsx=30))
-        fig_cmp.update_layout(barmode="overlay", template=PT, height=270,
-            title="Events / bar: FIB vs baseline", xaxis_title="Events",
-            margin=dict(l=40,r=10,t=42,b=40), legend=dict(orientation="h",y=-0.22,font_size=11))
+        fig_cmp.add_trace(go.Histogram(
+            x=bars_df["n_events"], name="FIB",
+            opacity=0.75, marker_color=C["fib"], nbinsx=30,
+        ))
+        fig_cmp.add_trace(go.Histogram(
+            x=bl_df["n_events"], name=f"Baseline ({bl_type})",
+            opacity=0.55, marker_color=C["baseline"], nbinsx=30,
+        ))
+        fig_cmp.update_layout(
+            barmode="overlay", template=PT, height=265,
+            title="Events per bar: FIB vs baseline",
+            xaxis_title="Events per bar", yaxis_title="Count",
+            margin=dict(l=45, r=10, t=42, b=40),
+            legend=dict(orientation="h", y=-0.22, font_size=11),
+            plot_bgcolor="white",
+        )
         st.plotly_chart(fig_cmp, use_container_width=True)
-    with cf:
+
+    with col_f:
         fig_box = go.Figure()
-        fig_box.add_trace(go.Box(y=bars_df["duration_seconds"], name="FIB",
-            marker_color="#C8F04A", boxmean=True, boxpoints="outliers"))
-        fig_box.add_trace(go.Box(y=bl_df["duration_seconds"],
-            name=f"Baseline ({bl_type})", marker_color="#F0A84A",
-            boxmean=True, boxpoints="outliers"))
-        fig_box.update_layout(template=PT, height=270,
+        fig_box.add_trace(go.Box(
+            y=bars_df["duration_seconds"], name="FIB",
+            marker_color=C["fib"], boxmean=True, boxpoints="outliers",
+        ))
+        fig_box.add_trace(go.Box(
+            y=bl_df["duration_seconds"], name=f"Baseline ({bl_type})",
+            marker_color=C["baseline"], boxmean=True, boxpoints="outliers",
+        ))
+        fig_box.update_layout(
+            template=PT, height=265,
             title="Duration distribution: FIB vs baseline",
-            yaxis_title="Duration (s)", margin=dict(l=40,r=10,t=42,b=40))
+            yaxis_title="Duration (s)",
+            margin=dict(l=45, r=10, t=42, b=40),
+            plot_bgcolor="white",
+        )
         st.plotly_chart(fig_box, use_container_width=True)
 
 st.divider()
 
-# ── Diagnostics + guidance ─────────────────────────────────────────────────────
-_sh("05 · OUTPUT & DIAGNOSTICS")
+# ── Section 4: Output tables + diagnostics ────────────────────────────────────
+_sh("05 · OUTPUT TABLES & DIAGNOSTICS")
 tab1, tab2, tab3 = st.tabs(["FIB Bars", "Augmented Dataset", "Parameter Guide"])
 
 with tab1:
-    st.dataframe(bars_df, use_container_width=True, height=260)
-    sv = bars_df[bars_df["close_reason"].isin(["timeout","max_events","inactivity"])]
+    st.dataframe(bars_df, use_container_width=True, height=250)
+    sv = bars_df[bars_df["close_reason"].isin(["timeout", "max_events", "inactivity"])]
     if not sv.empty:
-        _callout(f"{len(sv)} bar(s) closed by safety valve (highlighted in price chart). "
-                 "Consider reducing eta or delta0 if these dominate.", "warn")
+        _callout(
+            f"{len(sv)} bar(s) closed by safety valve (highlighted in the price chart). "
+            "If these dominate, reduce η, lower δ₀, or increase the bar timeout.",
+            "warn",
+        )
 
 with tab2:
-    st.dataframe(aug_df, use_container_width=True, height=260)
-    st.caption("Extra features: threshold_utilization · information_rate · log_duration · "
-               "log_n_events · log_information_scalar · price_range · price_range_pct · "
-               "vwap · is_threshold_close · bar_index")
+    st.dataframe(aug_df, use_container_width=True, height=250)
+    st.caption(
+        "Derived features: threshold_utilization · information_rate · "
+        "log_duration · log_n_events · log_information_scalar · "
+        "price_range · price_range_pct · vwap · is_threshold_close · bar_index"
+    )
 
 with tab3:
     st.markdown(f"""
-**Active config:** model=`{model}` · info_mode=`{info_mode}` · scalarizer=`{scalarizer}`
-· eta={eta} · delta0={delta0}s · EWMA alpha={ewma_a} · warmup={min_wu} bars
+**Active config** — model: `{model}` · info_mode: `{info_mode}` · scalarizer: `{scalarizer}`
+· η = {eta} · δ₀ = {delta0}s · EWMA α = {ewma_a} · warmup = {min_wu} bars
 
 ---
 #### Tuning guide
 
-| Metric | Healthy range | Action if outside |
-|--------|--------------|-------------------|
-| % threshold close | > 50% | Reduce eta or delta0 |
-| CV events/bar | 0.2 – 0.8 | High CV: lower EWMA alpha; Low: raise eta |
-| Avg duration | near delta0 | Large gap: eta too high; tiny bars: eta too low |
-| Avg info scalar | near threshold | Consistently below: warmup too long |
+| Metric | Healthy range | Action |
+|--------|--------------|--------|
+| % threshold closes | > 50% | Reduce η or δ₀ if below |
+| CV of events/bar | 0.2 – 0.8 | High CV → lower EWMA α; very low → raise η |
+| Avg duration | ≈ δ₀ | Large gap → η too high; very short → η too low |
 
 ---
-#### Parameter meanings
+#### Understanding the parameters
 
-**eta** — scales the information quantum I*. Think of it as "how much statistical evidence
-before I close a bar". Start at 1.0, halve it if bars are too few.
+**η (eta)** — scales I*, the information quantum. Think of it as "how much statistical
+evidence before closing a bar". Start at 1.0. Halve it if too few bars form.
 
-**delta0** — your target bar duration in seconds. At equilibrium, average bar duration ≈ delta0.
+**δ₀ (delta0)** — your target bar duration in seconds. At equilibrium, average duration ≈ δ₀.
 
-**EWMA alpha** — how quickly the threshold adapts to regime changes. 0.05 is conservative (stable).
-0.15–0.20 for rapidly-changing markets.
+**EWMA α** — how quickly the threshold adapts to regime changes.
+0.02–0.05 is conservative (stable threshold). 0.10–0.20 for rapidly-changing markets.
 
-**warmup bars** — during warmup the threshold is seeded from the first observed scalar.
-Set to 3–5 for quick datasets, 20+ for stable long-run estimation.
+**Warmup bars** — the threshold seeds from the first scalar during warmup.
+Use 3–5 for quick exploration, 20+ for stable long-run estimation.
 
 ---
 #### Model selection
 
-- **Gaussian**: Assumes returns are N(mu, sigma^2). Best for clean, near-normal data.
-  Fast and interpretable.
-- **GARCH**: Adapts sigma^2 after each event using GARCH(1,1). Best for equity/FX where
-  volatility clusters. More robust to regime shifts than Gaussian.
-- **Hawkes**: Information comes from arrival intensity lambda(t), not price.
-  Best for order-flow data or datasets where tick clustering matters more than price level.
+- **Gaussian** — assumes returns are N(μ, σ²). Simple and fast. Best for near-normal data.
+- **GARCH** — fits a GARCH(1,1) to returns, adapting σ² after each tick.
+  Best for equity and FX where volatility clusters. More robust to regime shifts.
+- **Hawkes** — information comes from arrival intensity λ(t), not price level.
+  Best when tick clustering matters more than price moves (order-flow, event data).
 
 ---
-#### About the scalarizers
+#### About Fisher Information
 
-All three scalarizers reduce the n x n information matrix J to a single number:
+The Fisher Information Matrix I(θ) measures how much data tells us about model parameters —
+it is the variance of the score ∇log f(x;θ). The **logdet** scalarizer uses log det(J + εI),
+which is reparameterisation-invariant: the same bar forms regardless of parameter scaling.
 
-- **logdet** = log det(J + eps*I). Reparameterisation-invariant. The same bar forms
-  regardless of how you rescale the parameters. **Recommended.**
-- **trace** = tr(J + eps*I). Fast. Scale-sensitive.
-- **frobenius** = ||J||_F. Captures off-diagonal covariance but not invariant.
+A FIB bar closes when: Φ(Σᵢ ∇ℓᵢ ∇ℓᵢᵀ) ≥ I\\*  where I\\* = η · λ̄_Φ · δ₀
 
 ---
-#### Integration example (Python)
+#### Python integration
 
 ```python
 from fibars import build_fib_bars, augment_with_fib_features, FIBConfig
+
 cfg = FIBConfig(model="garch", eta=1.0, delta0_seconds=60.0)
-bars = build_fib_bars(df, config=cfg)
-aug  = augment_with_fib_features(bars)
+bars = build_fib_bars(df, config=cfg)          # df needs: timestamp, price
+aug  = augment_with_fib_features(bars)         # adds 10 derived features
 ```
 """)
 
 st.divider()
 
-# ── Downloads ──────────────────────────────────────────────────────────────────
+# ── Section 5: Exports ────────────────────────────────────────────────────────
 _sh("06 · EXPORTS")
-d1,d2,d3,d4 = st.columns(4)
+d1, d2, d3, d4 = st.columns(4)
 with d1:
-    st.download_button("Download FIB Bars CSV", data=_csv(bars_df),
-        file_name="fib_bars.csv", mime="text/csv", use_container_width=True)
+    st.download_button(
+        "Download FIB Bars (CSV)", data=_csv(bars_df),
+        file_name="fib_bars.csv", mime="text/csv", use_container_width=True,
+    )
 with d2:
-    st.download_button("Download Augmented CSV", data=_csv(aug_df),
-        file_name="fib_augmented.csv", mime="text/csv", use_container_width=True)
+    st.download_button(
+        "Download Augmented (CSV)", data=_csv(aug_df),
+        file_name="fib_augmented.csv", mime="text/csv", use_container_width=True,
+    )
 with d3:
-    exp = {k:v for k,v in sm.items() if k!="reasons"}
-    exp.update(sm.get("reasons",{}))
-    exp["config"] = {"model":model,"info_mode":info_mode,"scalarizer":scalarizer,
-                     "eta":eta,"delta0_seconds":delta0,"ewma_alpha":ewma_a,
-                     "timeout_seconds":float(timeout_s),"min_warmup_events":int(min_wu)}
-    st.download_button("Download Summary JSON",
-        data=json.dumps(exp,indent=2).encode("utf-8"),
-        file_name="fib_summary.json", mime="application/json", use_container_width=True)
+    exp = {k: v for k, v in sm.items() if k != "reasons"}
+    exp.update(sm.get("reasons", {}))
+    exp["config"] = {
+        "model": model, "info_mode": info_mode, "scalarizer": scalarizer,
+        "eta": eta, "delta0_seconds": delta0, "ewma_alpha": ewma_a,
+        "timeout_seconds": float(timeout_s), "min_warmup_events": int(min_wu),
+    }
+    st.download_button(
+        "Download Summary (JSON)",
+        data=json.dumps(exp, indent=2).encode("utf-8"),
+        file_name="fib_summary.json", mime="application/json",
+        use_container_width=True,
+    )
 with d4:
     if bl_df is not None and not bl_df.empty:
-        st.download_button(f"Download Baseline CSV", data=_csv(bl_df),
-            file_name=f"baseline_{bl_type}.csv", mime="text/csv", use_container_width=True)
+        st.download_button(
+            f"Download Baseline (CSV)", data=_csv(bl_df),
+            file_name=f"baseline_{bl_type}.csv", mime="text/csv",
+            use_container_width=True,
+        )
     else:
-        st.button("Download Baseline CSV", disabled=True, use_container_width=True)
+        st.button("Download Baseline (CSV)", disabled=True, use_container_width=True)
 
 st.markdown(
-    '<div style="text-align:center;color:#7A7F8E;font-size:.7rem;'
-    'margin-top:2rem;font-family:\'IBM Plex Mono\',monospace;">'
-    'Fisher Information Bars v1.1.0 · sum Psi_i(theta) >= I*</div>',
-    unsafe_allow_html=True)
+    "<div style='text-align:center;color:#9CA3AF;font-size:.7rem;"
+    "font-family:JetBrains Mono,monospace;margin-top:2rem;'>"
+    "Fisher Information Bars v1.1.0 &nbsp;·&nbsp; "
+    "bar closes when Σ Ψᵢ(θ̂) ≥ I*"
+    "</div>",
+    unsafe_allow_html=True,
+)
