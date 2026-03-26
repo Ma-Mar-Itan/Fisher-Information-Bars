@@ -4,20 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fibars"
-version = "1.0.0"
-description = "Fisher Information Bars — information-geometric financial sampling"
+version = "1.1.0"
+description = "Fisher Information Bars"
 requires-python = ">=3.11"
-dependencies = [
-    "numpy>=1.24",
-    "pandas>=2.0",
-    "scipy>=1.10",
-]
+dependencies = ["numpy>=1.24", "pandas>=2.0", "scipy>=1.10"]
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=7.0",
-    "pytest-cov",
-]
+dev = ["pytest>=7.0", "pytest-cov"]
+app = ["streamlit>=1.32", "plotly>=5.18", "altair>=5.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from ..config import FIBConfig
 from ..events import MarketEvent
-from ..models import REGISTRY as MODEL_REGISTRY
+from ..models import create_model
 from ..models.base import BaseLocalModel
 from ..information.scalarizers import get_scalarizer, BaseScalarizer
 from ..thresholds.adaptive import AdaptiveThresholdPolicy
@@ -17,7 +17,8 @@ class FIBBuilder:
     """
     Stateful, event-driven FIB bar builder.
 
-    Usage:
+    Usage
+    -----
         builder = FIBBuilder(config)
         for event in stream:
             bar = builder.update(event)
@@ -28,8 +29,10 @@ class FIBBuilder:
 
     def __init__(self, config: FIBConfig | None = None) -> None:
         self.cfg = config or FIBConfig()
-        self._model: BaseLocalModel = MODEL_REGISTRY[self.cfg.model]()
-        self._model.initialize()
+
+        # Model instantiated via factory — config params correctly plumbed
+        self._model: BaseLocalModel = create_model(self.cfg)
+
         self._scalarizer: BaseScalarizer = get_scalarizer(self.cfg.scalarizer)
         self._threshold_policy = AdaptiveThresholdPolicy(
             eta=self.cfg.eta,
@@ -48,13 +51,13 @@ class FIBBuilder:
             price_field=self.cfg.price_field,
             volume_field=self.cfg.volume_field,
         )
-        self._n_params: int = self._get_n_params()
+
+        # n_params comes from model itself — no hardcoding
+        self._n_params: int = self._model.n_params
         self._J: np.ndarray = np.zeros((self._n_params, self._n_params))
         self._current_scalar: float = 0.0
         self._global_event_count: int = 0
-
-    def _get_n_params(self) -> int:
-        return {"gaussian": 2, "garch": 3, "hawkes": 3}.get(self.cfg.model, 2)
+        self._last_event_time: float = 0.0
 
     def _reset_bar(self) -> None:
         self._J = np.zeros((self._n_params, self._n_params))
@@ -63,17 +66,24 @@ class FIBBuilder:
 
     def _compute_increment(self, event: MarketEvent) -> np.ndarray:
         if self.cfg.info_mode == "observed":
-            return self._model.observed_information_increment(event)
-        return self._model.expected_information_increment(event)
+            inc = self._model.observed_information_increment(event)
+        else:
+            inc = self._model.expected_information_increment(event)
+        # Guard against NaN/Inf in increment
+        if not np.all(np.isfinite(inc)):
+            return np.zeros((self._n_params, self._n_params))
+        return inc
 
     def _scalarize(self) -> float:
-        return self._scalarizer(symmetrize(self._J), eps=self.cfg.eps_ridge)
+        val = self._scalarizer(symmetrize(self._J), eps=self.cfg.eps_ridge)
+        return val if np.isfinite(val) else 0.0
 
-    def _emit_bar(self, timeout_flag: bool) -> FIBBar:
+    def _emit_bar(self, close_reason: str) -> FIBBar:
         scalar = self._current_scalar
         threshold = self._threshold_policy.current_threshold()
         dur = self._agg.duration_seconds
-        self._threshold_policy.update(scalar, dur)
+        self._threshold_policy.update(scalar, max(dur, 1e-3))
+        timeout_flag = close_reason != "threshold"
         bar = FIBBar(
             open_time=self._agg.open_time or 0.0,
             close_time=self._agg.close_time or 0.0,
@@ -89,6 +99,7 @@ class FIBBuilder:
             information_scalar=scalar,
             threshold_at_close=threshold,
             timeout_flag=timeout_flag,
+            close_reason=close_reason,
             model_name=self.cfg.model,
             info_mode=self.cfg.info_mode,
             scalarizer_name=self.cfg.scalarizer,
@@ -102,14 +113,16 @@ class FIBBuilder:
         """Process one event. Returns a FIBBar if the bar closes, else None."""
         self._global_event_count += 1
         event.index = self._global_event_count
+        prev_event_time = self._last_event_time
+        self._last_event_time = event.timestamp
 
-        # First event in a bar: open it, no increment yet (no prior price)
+        # First event in bar: open it, prime the model, no increment yet
         if self._agg.n_events == 0:
             self._agg.add(event)
             self._model.update(event)
             return None
 
-        # Compute increment at theta_{i-1} BEFORE updating model
+        # Compute increment at theta_{i-1} BEFORE updating model state
         increment = self._compute_increment(event)
         self._J += increment
         self._current_scalar = self._scalarize()
@@ -121,38 +134,60 @@ class FIBBuilder:
         self._agg.add(event)
         self._model.update(event)
 
-        # ── Timeout check ───────────────────────────────────────────────────
         bar_start = self._agg.open_time or event.timestamp
-        if self._timeout_policy.should_timeout(
-            bar_start_time=bar_start,
-            current_time=event.timestamp,
-            n_events_in_bar=self._agg.n_events,
-            last_event_time=event.timestamp,
-        ):
-            return self._emit_bar(timeout_flag=True)
 
-        # ── Information threshold check ─────────────────────────────────────
+        # ── Inactivity check (gap between previous and current event) ───────
+        if self.cfg.inactivity_timeout_seconds is not None:
+            gap = event.timestamp - prev_event_time
+            if prev_event_time > 0 and gap >= self.cfg.inactivity_timeout_seconds:
+                return self._emit_bar("inactivity")
+
+        # ── Wall-clock timeout ───────────────────────────────────────────────
+        if event.timestamp - bar_start >= self.cfg.timeout_seconds:
+            return self._emit_bar("timeout")
+
+        # ── Max events cap ───────────────────────────────────────────────────
+        if self._agg.n_events >= self.cfg.max_events_per_bar:
+            return self._emit_bar("max_events")
+
+        # ── Information threshold ────────────────────────────────────────────
         if self._current_scalar >= self._threshold_policy.current_threshold():
-            return self._emit_bar(timeout_flag=False)
+            return self._emit_bar("threshold")
 
         return None
 
     def flush(self) -> FIBBar | None:
-        """Force-close any open bar (call at end of data)."""
+        """Force-close any open bar at end of data."""
         if self._agg.n_events > 0:
-            return self._emit_bar(timeout_flag=True)
+            return self._emit_bar("flush")
+        return None
+
+    def heartbeat(self, wall_time: float) -> FIBBar | None:
+        """
+        Poll-based timeout for live streaming with no new events.
+        Call periodically (e.g. every second) from an external clock.
+        Returns a bar if timeout fires, else None.
+        """
+        if self._agg.n_events == 0:
+            return None
+        bar_start = self._agg.open_time or wall_time
+        if self._timeout_policy.check_heartbeat(
+            bar_start_time=bar_start,
+            heartbeat_time=wall_time,
+            n_events_in_bar=self._agg.n_events,
+            last_event_time=self._last_event_time,
+        ):
+            return self._emit_bar("timeout")
         return None
 
     # ── Live inspection ─────────────────────────────────────────────────────
 
     @property
     def current_scalar(self) -> float:
-        """Scalarised information accumulated in the open bar so far."""
         return self._current_scalar
 
     @property
     def current_threshold(self) -> float:
-        """Current Information Quantum I*."""
         return self._threshold_policy.current_threshold()
 
     @property

@@ -1,8 +1,11 @@
 """FIBBar: the output record emitted when a bar closes."""
 from __future__ import annotations
 from dataclasses import dataclass, asdict
-from typing import Optional
+from typing import Optional, Literal
 import pandas as pd
+
+
+CloseReason = Literal["threshold", "timeout", "max_events", "flush", "inactivity"]
 
 
 @dataclass
@@ -12,41 +15,28 @@ class FIBBar:
 
     Temporal
     --------
-    open_time, close_time : float
-        Unix epoch seconds.
+    open_time, close_time : float   — Unix epoch seconds
     duration_seconds : float
-        close_time - open_time.
     n_events : int
-        Number of market events contained in this bar.
 
     Price / volume
     --------------
     open, high, low, close : float
-        Standard OHLC from the price field.
     sum_volume : float
-        Sum of the size field over all events.
     dollar_value : float
-        Sum of price * size over all events.
     mean_spread : float | None
-        Mean bid-ask spread, or None if quotes were unavailable.
 
     Information geometry
     --------------------
-    information_scalar : float
-        Φ(I_k) — the scalarised accumulated information at bar close.
-    threshold_at_close : float
-        I* — the Information Quantum in effect when the bar closed.
-    timeout_flag : bool
-        True if the bar was force-closed by a timeout rule rather than
-        by the information threshold being reached.
+    information_scalar : float      — Phi(I_k) at bar close
+    threshold_at_close : float      — I* at bar close
+    timeout_flag : bool             — True if not threshold-triggered
+    close_reason : str              — 'threshold' | 'timeout' | 'max_events' | 'flush' | 'inactivity'
 
     Provenance
     ----------
-    model_name : str
-    info_mode : str
-    scalarizer_name : str
+    model_name, info_mode, scalarizer_name : str
     start_event_index, end_event_index : int
-        Indices into the original event stream.
     """
 
     # Temporal
@@ -68,13 +58,14 @@ class FIBBar:
     information_scalar: float
     threshold_at_close: float
     timeout_flag: bool
+    close_reason: str = "threshold"
 
     # Provenance
-    model_name: str
-    info_mode: str
-    scalarizer_name: str
-    start_event_index: int
-    end_event_index: int
+    model_name: str = ""
+    info_mode: str = ""
+    scalarizer_name: str = ""
+    start_event_index: int = 0
+    end_event_index: int = 0
 
     def to_dict(self) -> dict:
         return asdict(self)

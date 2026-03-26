@@ -1,6 +1,6 @@
 """FIBConfig: single source of truth for all hyperparameters."""
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal, Optional
 
 
@@ -12,62 +12,37 @@ class FIBConfig:
     Model selection
     ---------------
     model : "gaussian" | "garch" | "hawkes"
-        Local likelihood model used to compute scores.
     info_mode : "observed" | "expected"
-        Whether to use the OPG (observed) or analytic (expected)
-        Fisher information increment at each event.
 
     Scalarization
     -------------
     scalarizer : "logdet" | "trace" | "frobenius"
-        How to collapse the accumulated information matrix to a scalar.
-        "logdet" is reparameterisation-invariant and the recommended default.
-    eps_ridge : float
-        Ridge regularisation added to J before scalarization.  Prevents
-        log-det from diverging to -inf on singular matrices.
+    eps_ridge : float  — ridge added to J before scalarization
 
     Threshold / Information Quantum
     --------------------------------
-    eta : float
-        Dimensionless multiplier on the adaptive threshold.
-        Higher eta → larger bars (more information per bar).
-    delta0_seconds : float
-        Reference bar duration in seconds used to seed the adaptive rate.
-    ewma_alpha : float
-        EWMA smoothing coefficient for the long-run information rate λ̄_Φ.
-        Smaller → slower adaptation (more stable threshold).
+    eta : float          — multiplier on adaptive threshold
+    delta0_seconds : float — reference bar duration
+    ewma_alpha : float   — EWMA smoothing for long-run rate
     min_threshold : float | None
-        Hard floor on I* to prevent runaway threshold collapse.
     max_threshold : float | None
-        Hard ceiling on I* to prevent bar starvation in dead markets.
-    min_warmup_events : int
-        Number of *bars* to complete before EWMA is considered reliable.
-        During warmup the threshold seeds from the last observed scalar.
+    min_warmup_events : int — bars before EWMA is trusted
 
     Timeout / safety valves
     -----------------------
     timeout_seconds : float
-        Max wall-clock seconds a bar may stay open.
     max_events_per_bar : int
-        Hard cap on events per bar.
     inactivity_timeout_seconds : float | None
-        If set, close the bar if no event arrives for this many seconds.
 
-    Price / volume fields
-    ---------------------
-    price_field : str
-        Name of the price field on MarketEvent used for OHLC.
-    volume_field : str
-        Name of the size field on MarketEvent used for volume.
+    Field names
+    -----------
+    price_field, volume_field : str
 
     Model-specific
     --------------
-    var_floor : float
-        Gaussian variance floor (prevents division by zero).
-    garch_persistence_max : float
-        Cap on alpha+beta for GARCH stationarity.
-    hawkes_intensity_floor : float
-        Floor on lambda(t) for Hawkes numerical stability.
+    var_floor : float               — Gaussian variance floor
+    garch_persistence_max : float   — cap on alpha+beta
+    hawkes_intensity_floor : float  — floor on lambda(t)
     """
 
     # ── Model ──────────────────────────────────────────────────────────────
@@ -110,8 +85,29 @@ class FIBConfig:
         if self.eps_ridge < 0:
             raise ValueError(f"eps_ridge must be non-negative, got {self.eps_ridge}")
         if self.model not in ("gaussian", "garch", "hawkes"):
-            raise ValueError(f"Unknown model '{self.model}'")
+            raise ValueError(f"Unknown model '{self.model}'. Choose: gaussian, garch, hawkes")
         if self.info_mode not in ("observed", "expected"):
-            raise ValueError(f"info_mode must be 'observed' or 'expected'")
+            raise ValueError(f"info_mode must be 'observed' or 'expected', got '{self.info_mode}'")
         if self.scalarizer not in ("logdet", "trace", "frobenius"):
-            raise ValueError(f"Unknown scalarizer '{self.scalarizer}'")
+            raise ValueError(f"Unknown scalarizer '{self.scalarizer}'. Choose: logdet, trace, frobenius")
+        if self.timeout_seconds <= 0:
+            raise ValueError(f"timeout_seconds must be positive, got {self.timeout_seconds}")
+        if self.max_events_per_bar < 1:
+            raise ValueError(f"max_events_per_bar must be >= 1, got {self.max_events_per_bar}")
+        if self.min_warmup_events < 0:
+            raise ValueError(f"min_warmup_events must be >= 0, got {self.min_warmup_events}")
+        if self.inactivity_timeout_seconds is not None and self.inactivity_timeout_seconds <= 0:
+            raise ValueError(f"inactivity_timeout_seconds must be positive, got {self.inactivity_timeout_seconds}")
+        if self.min_threshold is not None and self.min_threshold < 0:
+            raise ValueError(f"min_threshold must be non-negative")
+        if self.max_threshold is not None and self.max_threshold <= 0:
+            raise ValueError(f"max_threshold must be positive")
+        if self.min_threshold is not None and self.max_threshold is not None:
+            if self.min_threshold >= self.max_threshold:
+                raise ValueError(f"min_threshold must be < max_threshold")
+        if self.var_floor <= 0:
+            raise ValueError(f"var_floor must be positive, got {self.var_floor}")
+        if not (0 < self.garch_persistence_max < 1):
+            raise ValueError(f"garch_persistence_max must be in (0,1), got {self.garch_persistence_max}")
+        if self.hawkes_intensity_floor <= 0:
+            raise ValueError(f"hawkes_intensity_floor must be positive")
